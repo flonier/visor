@@ -1116,7 +1116,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
           IDDecoration search = {pCode[2]};
           auto it = std::lower_bound(decorations.begin(), decorations.end(), search);
 
-          if(it->id != search.id)
+          if(it != decorations.end() && it->id != search.id)
           {
             search.id = ptrtypes[pCode[1]];
             it = std::lower_bound(decorations.begin(), decorations.end(), search);
@@ -1219,12 +1219,22 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         values[pCode[2]] = builder.CreateAnd(values[pCode[3]], values[pCode[4]]);
         break;
       }
-      case spv::OpConvertSToF:
-      {
+      case spv::OpConvertFToU: {
+        values[pCode[2]] = builder.CreateFPToUI(values[pCode[3]], types[pCode[1]]);
+        break;
+      }
+      case spv::OpConvertFToS: {
+        values[pCode[2]] = builder.CreateFPToSI(values[pCode[3]], types[pCode[1]]);
+        break;
+      }
+      case spv::OpConvertSToF: {
         values[pCode[2]] = builder.CreateSIToFP(values[pCode[3]], types[pCode[1]]);
         break;
       }
-
+      case spv::OpConvertUToF: {
+        values[pCode[2]] = builder.CreateUIToFP(values[pCode[3]], types[pCode[1]]);
+        break;
+      }
       ////////////////////////////////////////////////
       // Flow control Instructions
       ////////////////////////////////////////////////

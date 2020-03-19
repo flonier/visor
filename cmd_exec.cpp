@@ -180,6 +180,24 @@ void VkCommandBuffer_T::execute() const
 
         break;
       }
+      case Command::BlitImage: {
+        const auto &data = pull<cmd::BlitImage>(&cur);
+
+        memcpy(data.dstImage->pixels, data.srcImage->pixels,
+               data.dstImage->extent.width * data.dstImage->extent.height *
+                   1 /*data.dstImage->extent.depth*/ * data.dstImage->bytesPerPixel);
+
+        break;
+      }
+      case Command::CopyImage: {
+        const auto &data = pull<cmd::CopyImage>(&cur);
+
+        memcpy(data.dstImage->pixels, data.srcImage->pixels,
+               data.dstImage->extent.width * data.dstImage->extent.height *
+                   1 /*data.dstImage->extent.depth*/ * data.dstImage->bytesPerPixel);
+
+        break;
+      }
     }
   }
 }
