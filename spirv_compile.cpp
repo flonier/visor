@@ -211,7 +211,7 @@ static void DeclareGlobalFunctions(llvm::Module *m)
                                      false),
                    GlobalValue::ExternalLinkage, "GetDescriptorBufferPointer", m);
 
-  Function::Create(FunctionType::get(PointerType::get(Type::getVoidTy(c), 0),
+  Function::Create(FunctionType::get(Type::getVoidTy(c),
                                      {
                                          t_GPUStateRef, Type::getInt32Ty(c), Type::getInt32Ty(c),
                                          PointerType::get(VectorType::get(Type::getFloatTy(c), 4), 0),
