@@ -127,8 +127,6 @@ static void ShadeVerts(const GPUState &state, int numVerts, uint32_t first, bool
 
   if(state.pipeline->topology == VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
   {
-    VertexCacheEntry vert;
-
     // only handle whole triangles
     int lastVert = numVerts - 3;
     uint32_t vertexIndex = first;

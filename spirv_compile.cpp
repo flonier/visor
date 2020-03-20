@@ -933,6 +933,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         break;
       }
       case spv::OpConstant:
+      case spv::OpSpecConstant:
       {
         Type *t = types[pCode[1]];
         if(t->isFloatTy())
@@ -942,6 +943,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         break;
       }
       case spv::OpConstantComposite:
+      case spv::OpSpecConstantComposite:
       {
         Type *t = types[pCode[1]];
         assert(t->isVectorTy());
@@ -1073,6 +1075,8 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
       case spv::OpMemberDecorate:
       case spv::OpConstantComposite:
       case spv::OpConstant:
+      case spv::OpSpecConstantComposite:
+      case spv::OpSpecConstant:
       case spv::OpTypeVoid:
       case spv::OpTypeBool:
       case spv::OpTypeInt:
@@ -1204,6 +1208,10 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         values[pCode[2]] = builder.CreateICmpSLT(values[pCode[3]], values[pCode[4]]);
         break;
       }
+      case spv::OpULessThan: {
+        values[pCode[2]] = builder.CreateICmpULT(values[pCode[3]], values[pCode[4]]);
+        break;
+      }
       case spv::OpIEqual:
       {
         values[pCode[2]] = builder.CreateICmpEQ(values[pCode[3]], values[pCode[4]]);
@@ -1211,12 +1219,24 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
       }
       case spv::OpShiftLeftLogical:
       {
+        values[pCode[2]] = builder.CreateShl(values[pCode[3]], values[pCode[4]]);
+        break;
+      }
+      case spv::OpShiftRightLogical: {
         values[pCode[2]] = builder.CreateLShr(values[pCode[3]], values[pCode[4]]);
         break;
       }
       case spv::OpBitwiseAnd:
       {
         values[pCode[2]] = builder.CreateAnd(values[pCode[3]], values[pCode[4]]);
+        break;
+      }
+      case spv::OpBitwiseOr: {
+        values[pCode[2]] = builder.CreateOr(values[pCode[3]], values[pCode[4]]);
+        break;
+      }
+      case spv::OpBitwiseXor: {
+        values[pCode[2]] = builder.CreateXor(values[pCode[3]], values[pCode[4]]);
         break;
       }
       case spv::OpConvertFToU: {
@@ -1250,6 +1270,10 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
       {
         builder.CreateBr(labels[pCode[1]]);
         curlabel = NULL;
+        break;
+      }
+      case spv::OpSelect: {
+        values[pCode[2]] = builder.CreateSelect(values[pCode[3]], values[pCode[4]], values[pCode[5]]);
         break;
       }
       case spv::OpSelectionMerge:
@@ -1484,6 +1508,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         values[pCode[2]] = builder.CreateFMul(values[pCode[3]], splat);
         break;
       }
+
       case spv::OpFMul:
       {
         values[pCode[2]] = builder.CreateFMul(values[pCode[3]], values[pCode[4]]);
@@ -1504,11 +1529,17 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         values[pCode[2]] = builder.CreateFSub(values[pCode[3]], values[pCode[4]]);
         break;
       }
+      case spv::OpFRem:
+      case spv::OpFMod: {
+        values[pCode[2]] = builder.CreateFRem(values[pCode[3]], values[pCode[4]]);
+        break;
+      }
       case spv::OpFNegate:
       {
         values[pCode[2]] = builder.CreateFNeg(values[pCode[3]]);
         break;
       }
+
       case spv::OpIMul:
       {
         values[pCode[2]] = builder.CreateMul(values[pCode[3]], values[pCode[4]]);
@@ -1519,6 +1550,12 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         values[pCode[2]] = builder.CreateAdd(values[pCode[3]], values[pCode[4]]);
         break;
       }
+      case spv::OpSRem:
+      case spv::OpSMod: {
+        values[pCode[2]] = builder.CreateSRem(values[pCode[3]], values[pCode[4]]);
+        break;
+      }
+
       case spv::OpDPdx:
       {
         // TODO
@@ -1587,6 +1624,25 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
 
             break;
           }
+          case GLSLstd450Floor: {
+            assert(WordCount == 6);
+            Value *x = ARG(0);
+            Value *floor = Intrinsic::getDeclaration(m, Intrinsic::floor, {Type::getFloatTy(c)});
+            values[pCode[2]] = builder.CreateCall(floor, {x});
+            break;
+          }
+          case GLSLstd450Fract: {
+            assert(WordCount == 6);
+            Value *x = ARG(0);
+            Value *floor = Intrinsic::getDeclaration(m, Intrinsic::floor, {Type::getFloatTy(c)});
+            Value *floor_of_x = builder.CreateCall(floor, {x});
+            Value *one = ConstantFP::get(Type::getFloatTy(c), 1.0f);
+            if(x->getType()->isVectorTy())
+              one = builder.CreateVectorSplat(x->getType()->getVectorNumElements(), one);
+
+            values[pCode[2]] = builder.CreateFSub(one, floor_of_x);
+            break;
+          }
           case GLSLstd450Cos:
           {
             assert(WordCount == 6);
@@ -1601,6 +1657,13 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
             Value *a = ARG(0);
             Value *sin = Intrinsic::getDeclaration(m, Intrinsic::sin, {Type::getFloatTy(c)});
             values[pCode[2]] = builder.CreateCall(sin, {a});
+            break;
+          }
+          case GLSLstd450FAbs: {
+            assert(WordCount == 6);
+            Value *a = ARG(0);
+            Value *fabs = Intrinsic::getDeclaration(m, Intrinsic::fabs, {Type::getFloatTy(c)});
+            values[pCode[2]] = builder.CreateCall(fabs, {a});
             break;
           }
           case GLSLstd450Sqrt:
@@ -1741,7 +1804,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
           default:
           {
             values[pCode[2]] = UndefValue::get(types[pCode[1]]);
-            assert(false && "Unhandled GLSL extended instruction");
+            assert(false && "Unhandled GLSL extended instruction (inst)");
             break;
           }
         }
@@ -1895,7 +1958,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         break;
       }
 
-      default: assert(false && "Unhandled SPIR-V opcode"); break;
+      default: assert(false && "Unhandled SPIR-V opcode (opcode)"); break;
     }
 
     pCode += WordCount;
