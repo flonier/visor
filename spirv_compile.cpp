@@ -932,6 +932,19 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
         assert(WordCount == 4);
         break;
       }
+      case spv::OpSpecConstantOp: {
+        Type *t = types[pCode[1]];
+        spv::Op specOpcode = spv::Op(pCode[3] & spv::OpCodeMask);
+        if(specOpcode == spv::OpIEqual)
+        {
+          values[pCode[2]] = builder.CreateICmpEQ(values[pCode[4]], values[pCode[5]]);
+        }
+        else
+        {
+          assert(0 && "Unsupported specOpcode");
+        }
+        break;
+      }
       case spv::OpConstant:
       case spv::OpSpecConstant:
       {
@@ -946,7 +959,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
       case spv::OpSpecConstantComposite:
       {
         Type *t = types[pCode[1]];
-        assert(t->isVectorTy());
+        assert(t->isVectorTy() || t->isArrayTy());
         std::vector<Constant *> members;
         for(uint16_t i = 3; i < WordCount; i++)
           members.push_back((Constant *)values[pCode[i]]);
@@ -1077,6 +1090,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
       case spv::OpConstant:
       case spv::OpSpecConstantComposite:
       case spv::OpSpecConstant:
+      case spv::OpSpecConstantOp:
       case spv::OpTypeVoid:
       case spv::OpTypeBool:
       case spv::OpTypeInt:
@@ -1091,6 +1105,7 @@ LLVMFunction *CompileFunction(const uint32_t *pCode, size_t codeSize)
       case spv::OpTypeSampledImage:
       {
         // Opcodes processed in first pass that we don't need
+        // TODO: memorize them
         break;
       }
 
